@@ -1,82 +1,90 @@
 # argo-cd-learning
 
+A small learning repo for installing ArgoCD into a local [kind](https://kind.sigs.k8s.io/) cluster and experimenting with the App-of-Apps pattern.
 
-kind create cluster \
-  --name argocd \
-  --config cluster/kind-config.yaml
+## Prerequisites
 
-kubectl cluster-info \
---context kind-argocd
+- [Docker](https://docs.docker.com/get-docker/) (kind runs nodes as containers)
+- [`kind`](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+- [`kubectl`](https://kubernetes.io/docs/tasks/tools/)
+- `make`, `bash` (already present on macOS / most Linux distros)
 
-### To further verify that the cluster is running, you can run the following command:
-kubectl get nodes
+## Quick start
 
-#### Create a namespace for ArgoCD by running the following command:
-kubectl create namespace argocd
+```bash
+make install     # create kind cluster + install ArgoCD core + patch NodePort
+make start       # apply application.yaml (App-of-Apps) onto the cluster
+make password    # print the initial admin password
+make info        # print URL, username, and password together
+make uninstall   # delete the kind cluster (removes everything)
+make help        # list targets and current config values
+```
 
-#### Install ArgoCD by running the following command, this will install ArgoCD in the argocd namespace:
-kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+After `make install` finishes, open the UI at <https://localhost:8080> and log in as `admin` with the password printed by `make password`.
 
-### Exporting ArgoCD Server NodePort
-#### To allow access to the ArgoCD server from outside the Kubernetes cluster, you will need to expose it through a service such as NodePort or LoadBalancer. By default, the
-ArgoCD server is only accessible within the cluster, so port mapping must be done
-correctly to enable outside access. Since KinD is actually a Docker container, you
-can access the ArgoCD UI server through localhost. To create a NodePort service
-with ports 80 and 443, which will be mapped to ports 8080 on the ArgoCD server, use
-the following command:
+## Configuration
 
-kubectl patch svc argocd-server -n argocd -p \
-  '{"spec": {"type": "NodePort", "ports": [{"name": "http", "nodePort": 30080, "port": 80, "protocol": "TCP", "targetPort": 8080}, {"name": "https", "nodePort": 30443, "port": 443, "protocol": "TCP", "targetPort": 8080}]}}'
+All scripts and Makefile targets share the same configurable knobs. Override any of them on the CLI, e.g. `make install CLUSTER_NAME=demo NODEPORT_HTTPS=31443`, or export them as env vars before running `scripts/*.sh` directly.
 
+| Variable              | Default                                                                              | Description                                          |
+| --------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `CLUSTER_NAME`        | `argocd`                                                                             | kind cluster name (kube-context becomes `kind-<name>`) |
+| `ARGOCD_NAMESPACE`    | `argocd`                                                                             | Namespace ArgoCD is installed into                   |
+| `KIND_CONFIG`         | `cluster/kind-config.yaml`                                                           | Path to kind cluster config                          |
+| `ARGOCD_MANIFEST_URL` | `https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml`   | ArgoCD install manifest                              |
+| `NODEPORT_HTTP`       | `30080`                                                                              | NodePort for the HTTP listener on `argocd-server`    |
+| `NODEPORT_HTTPS`      | `30443`                                                                              | NodePort for the HTTPS listener on `argocd-server`   |
+| `WAIT_TIMEOUT`        | `300s`                                                                               | Timeout for `kubectl rollout status` waits           |
+| `APP_OF_APPS`         | `application.yaml`                                                                   | Path to the App-of-Apps manifest applied by `make start` |
 
-  ### Accessing ArgoCD UI
+> Note: the kind container's host-port mapping (`hostPort: 8080` -> `containerPort: 30443`) lives in [`cluster/kind-config.yaml`](cluster/kind-config.yaml). If you change `NODEPORT_HTTPS`, update that file too — otherwise the port forward from your host won't line up with the new NodePort.
 
-To access the ArgoCD UI, open a web browser and go to https://localhost:8080. 
+## What `make install` does
 
-### Getting ArgoCD Admin Password
-To log in to the ArgoCD UI or CLI, you need the admin password. You can retrieve it by running the following command:
+1. Verifies `kind` and `kubectl` are on `PATH`.
+2. Creates the kind cluster from `KIND_CONFIG` (skipped if it already exists).
+3. Creates the `ARGOCD_NAMESPACE` namespace (idempotent via `apply`).
+4. Applies the upstream ArgoCD install manifest with `--server-side --force-conflicts`.
+5. Waits for `argocd-server`, `argocd-repo-server`, and the `argocd-application-controller` StatefulSet to roll out.
+6. Patches the `argocd-server` Service to type `NodePort` using `NODEPORT_HTTP` / `NODEPORT_HTTPS`.
 
-username: admin
+`make uninstall` simply runs `kind delete cluster --name "$CLUSTER_NAME"`, which tears down every namespace and resource in one shot.
 
-kubectl get secret \
-  -n argocd \
-  argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" |
-  base64 -d &&
-  echo
-----
+---
 
-ArgoCD Examples
-https://github.com/argoproj/argocd-example-apps
+## Adding test apps
 
-Start with https://github.com/argoproj/argocd-example-apps/tree/master/guestbook
+`make install` intentionally stops after ArgoCD core. To layer apps on top, use either of:
 
------
-Adding a test app
-# Option 1 (Via Menifests)
-    - Use applications/*.yaml
+### Option 1 — App-of-Apps (manifests in this repo)
 
-# Option 2 (Argo CD UI)
-    1. Fork https://github.com/argoproj/argocd-example-apps
+Apply the root [application.yaml](application.yaml) once ArgoCD is up. It points at the [applications/](applications) directory and will create the [`guestbook`](applications/argo-cd-guest-app.yaml) and [`helm-guestbook`](applications/argo-cd-helm-guest-app.yaml) Applications:
 
-    2. #### Create a namespace for ArgoCD by running the following command:
-    kubectl create namespace guestbook
+```bash
+make start
+# or, equivalently:
+kubectl apply -f application.yaml
+```
 
-    3. Create a new application in Argo CD UI
-        Application Name: argo-cd-guest-app
-        Project Name: Default
-        Sync Policy: Automatic
-        Repository URL: https://github.com/diliplakshya/argocd-example-apps
-        Path: guestbook
-        Cluster URL: default pop up
-        namespace: 
+### Option 2 — Argo CD UI
 
-        Click on crate button.
+1. Fork <https://github.com/argoproj/argocd-example-apps>.
+2. In the UI, create a new Application:
+   - Application Name: `argo-cd-guest-app`
+   - Project: `default`
+   - Sync Policy: Automatic
+   - Repository URL: your fork's URL
+   - Path: `guestbook`
+   - Cluster URL: in-cluster default
+   - Namespace: `guestbook`
+3. Click Create. Check status with:
+   ```bash
+   kubectl get deploy -n guestbook
+   ```
+4. Edit the replica count in your fork's `guestbook/guestbook-ui-deployment.yaml` and watch ArgoCD pick up the change.
+5. Repeat for the `helm-guestbook` path to try a Helm-sourced Application.
 
-    Check status: kubectl get deploy -n guestbook
+## References
 
-    Now, update replica count in https://github.com/diliplakshya/argocd-example-apps/blob/master/guestbook/guestbook-ui-deployment.yaml#L6
-    This will trigger a deployment in ArgoCD.
-
-    Similarly create new app for https://github.com/diliplakshya/argocd-example-apps/tree/master/helm-guestbook
-
+- ArgoCD example apps: <https://github.com/argoproj/argocd-example-apps>
+- Guestbook starting point: <https://github.com/argoproj/argocd-example-apps/tree/master/guestbook>
