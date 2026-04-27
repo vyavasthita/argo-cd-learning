@@ -1,13 +1,20 @@
-project: default
-source:
-  repoURL: https://github.com/diliplakshya/argocd-example-apps
-  path: helm-guestbook
-  targetRevision: master
-destination:
-  server: https://kubernetes.default.svc
-  namespace: helm-guestbook
-syncPolicy:
-  automated:
-    enabled: true
-  syncOptions:
-    - CreateNamespace=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/diliplakshya/argocd-example-apps
+    path: helm-guestbook
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helm-guestbook
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
