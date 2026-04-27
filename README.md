@@ -14,6 +14,7 @@ A small learning repo for installing ArgoCD into a local [kind](https://kind.sig
 ```bash
 make install     # create kind cluster + install ArgoCD core + patch NodePort
 make start       # apply application.yaml (App-of-Apps) onto the cluster
+make stop        # delete the Applications created by `make start`
 make password    # print the initial admin password
 make info        # print URL, username, and password together
 make uninstall   # delete the kind cluster (removes everything)
