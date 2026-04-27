@@ -6,7 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/diliplakshya/argocd-example-apps
+    repoURL: https://github.com/vyavasthita/argo-cd-learning.git
+    targetRevision: main
     path: applications                               
   destination:
     server: https://kubernetes.default.svc
