@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/diliplakshya/argocd-example-apps
     path: guestbook
-    targetRevision: master
+    targetRevision: HEAD
   destination:
     server: https://kubernetes.default.svc
     namespace: guestbook
