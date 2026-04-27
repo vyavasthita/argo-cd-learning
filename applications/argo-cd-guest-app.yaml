@@ -1,0 +1,13 @@
+project: default
+source:
+  repoURL: https://github.com/diliplakshya/argocd-example-apps
+  path: guestbook
+  targetRevision: master
+destination:
+  server: https://kubernetes.default.svc
+  namespace: guestbook
+syncPolicy:
+  automated:
+    enabled: true
+  syncOptions:
+    - CreateNamespace=true

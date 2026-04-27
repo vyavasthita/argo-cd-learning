@@ -53,26 +53,30 @@ Start with https://github.com/argoproj/argocd-example-apps/tree/master/guestbook
 
 -----
 Adding a test app
-1. Fork https://github.com/argoproj/argocd-example-apps
+# Option 1 (Via Menifests)
+    - Use applications/*.yaml
 
-2. #### Create a namespace for ArgoCD by running the following command:
-kubectl create namespace guestbook
+# Option 2 (Argo CD UI)
+    1. Fork https://github.com/argoproj/argocd-example-apps
 
-3. Create a new application in Argo CD UI
-    Application Name: argo-cd-guest-app
-    Project Name: Default
-    Sync Policy: Automatic
-    Repository URL: https://github.com/diliplakshya/argocd-example-apps
-    Path: guestbook
-    Cluster URL: default pop up
-    namespace: 
+    2. #### Create a namespace for ArgoCD by running the following command:
+    kubectl create namespace guestbook
 
-    Click on crate button.
+    3. Create a new application in Argo CD UI
+        Application Name: argo-cd-guest-app
+        Project Name: Default
+        Sync Policy: Automatic
+        Repository URL: https://github.com/diliplakshya/argocd-example-apps
+        Path: guestbook
+        Cluster URL: default pop up
+        namespace: 
 
-Check status: kubectl get deploy -n guestbook
+        Click on crate button.
 
-Now, update replica count in https://github.com/diliplakshya/argocd-example-apps/blob/master/guestbook/guestbook-ui-deployment.yaml#L6
-This will trigger a deployment in ArgoCD.
+    Check status: kubectl get deploy -n guestbook
 
-Similarly create new app for https://github.com/diliplakshya/argocd-example-apps/tree/master/helm-guestbook
+    Now, update replica count in https://github.com/diliplakshya/argocd-example-apps/blob/master/guestbook/guestbook-ui-deployment.yaml#L6
+    This will trigger a deployment in ArgoCD.
+
+    Similarly create new app for https://github.com/diliplakshya/argocd-example-apps/tree/master/helm-guestbook
 
